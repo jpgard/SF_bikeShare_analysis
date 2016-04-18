@@ -66,20 +66,38 @@ Daily weather information per service area. Weather is listed from north to sout
 ```{r}
 library(plyr)
 library(tidyr)
+library(ggmap)
+library(qdapRegex)
 
 
 stationdata = read.csv("201408_babs_open_data/201408_station_data.csv")
 tripdata = read.csv("201408_babs_open_data/201408_trip_data.csv")
 weatherdata = read.csv("201408_babs_open_data/201408_weather_data.csv")
 
-weather_subset = weatherdata[,c("PDT", "Max.TemperatureF", "Mean.TemperatureF", "Min.TemperatureF", "Max.Humidity", "Mean.Humidity", "Min.Humidity", "Max.VisibilityMiles", "Mean.VisibilityMiles", "Min.VisibilityMiles", "Max.Wind.SpeedMPH", "Mean.Wind.SpeedMPH", "Max.Gust.SpeedMPH", "PrecipitationIn", "CloudCover", "Events", "Zip")]
+weather_subset = weatherdata[,c("PDT", "Max.TemperatureF", "Mean.TemperatureF", "Min.TemperatureF", "Mean.Humidity", "Mean.VisibilityMiles", "Mean.Wind.SpeedMPH", "Max.Gust.SpeedMPH", "PrecipitationIn", "CloudCover", "Events", "Zip")]
 
 tripdata <- tripdata %>%
-    mutate(StartDateTime = as.POSIXct(Start.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific"))
-    mutate(EndDateTime = as.POSIXct(End.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific"))
+    mutate(StartDateTime = as.POSIXct(Start.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific")) %>%
+    mutate(EndDateTime = as.POSIXct(End.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific")) %>%
     separate(Start.Date, into = c("StartDate", "StartTime"), sep = " ") %>%
     separate(End.Date, into = c("EndDate", "EndTime"), sep = " ") %>%
     rename(c("Bike.." = "Bike_number"))
+
+results = data.frame()
+for (i in 1:nrow(stationdata)) {
+    address = revgeocode(c(stationdata[i,c("long")], stationdata[i,c("lat")]))
+    results = rbind(results, data.frame("name" = stationdata[i,c("name")], "address" = address))
+}
+
+#saves results of station addresses to file
+#write.csv(results, file = "station_addresses.csv")
+
+#add address to stationdata, extract ZIP codes to new variable
+stationdata = merge(results, stationdata)
+stationdata$ZIP = ex_zip(stationdata$address)
+
+#use station name to merge stationdata with tripdata, add only ZIPs to tripdata
+tripdata = merge(tripdata, stationdata[,c("name", "ZIP")], by.x = "Start.Station", by.y = "name")
 
 ```
 
@@ -92,7 +110,9 @@ hist(tripdata$Duration, breaks = 10000, xlim = c(0, 5000))
 
 
 
+#Principal Components Analysis and Visualization
 
+#Clustering and Visualization
 
 
 
