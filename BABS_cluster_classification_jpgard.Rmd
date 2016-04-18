@@ -5,18 +5,98 @@ date: "April 15, 2016"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#Introduction
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The questions of interest for this analysis are: 
+
+*Can we find distinct clusters of riders, based on the features available in the Bay Area Bike Share open dataset?
+*Can we predict ride length (short, medium, or long) using k-nearest neighbors classification?
+
+#The Data
+
+This analysis uses three different datasets provided as part of the Bay Area Bike Share (BABS) open dataset. Files contain data from  3/1/14 to 8/31/14.
+
+####Station Information:
+
+FILE = "201408_station_data.csv"
+
+
+*station_id: station ID number (corresponds to "station_id" in "201408_status_data.csv")
+*name: name of station
+*lat: latitude
+*long: longitude
+*dockcount: number of total docks at station
+*landmark: city (San Francisco, Redwood City, Palo Alto, Mountain View, San Jose)
+*installation: date that station was installed 
+
+####Trip Data:
+
+FILE = "201408_trip_data.csv"
+
+
+-Trip ID: numeric ID of bike trip
+-Duration: time of trip in seconds
+-Start Date: start date of trip with date and time, in PST
+-Start Station: station name of start station
+-Start Terminal: numeric reference for start station
+-End Date: end date of trip with date and time, in PST
+-End Station: station name for end station
+-End Terminal: numeric reference for end station
+-Bike #: ID of bike used
+-Subscription Type: Subscriber = annual member; Customer = 24-hour or 3-day member
+-Zip Code: Home zip code of user (only available for annual members)
+
+
+####Weather Data:
+
+FILE = "201408_weather_data.csv"
+Daily weather information per service area. Weather is listed from north to south (San Francisco, Redwood City, Palo Alto, Mountain View, San Jose).
+    
+-Max_Visibility_Miles 	
+-Mean_Visibility_Miles 	
+-Min_Visibility_Miles 	 		
+-Precipitation_In 	"numeric, in form x.xx but alpha ""T""= trace when amount less than .01 inch"	
+-Cloud_Cover 	"scale of 0-8, 0=clear"	
+-Events	"text field - entries: rain, fog, thunderstorm"	
+-zip code: 94107=San Francisco, 94063=Redwood City, 94301=Palo Alto, 94041=Mountain View, 95113= San Jose"
+
+#Analysis and Methods
+
 
 ```{r}
-summary(cars)
+library(plyr)
+library(tidyr)
+
+
+stationdata = read.csv("201408_babs_open_data/201408_station_data.csv")
+tripdata = read.csv("201408_babs_open_data/201408_trip_data.csv")
+weatherdata = read.csv("201408_babs_open_data/201408_weather_data.csv")
+
+weather_subset = weatherdata[,c("PDT", "Max.TemperatureF", "Mean.TemperatureF", "Min.TemperatureF", "Max.Humidity", "Mean.Humidity", "Min.Humidity", "Max.VisibilityMiles", "Mean.VisibilityMiles", "Min.VisibilityMiles", "Max.Wind.SpeedMPH", "Mean.Wind.SpeedMPH", "Max.Gust.SpeedMPH", "PrecipitationIn", "CloudCover", "Events", "Zip")]
+
+tripdata <- tripdata %>%
+    mutate(StartDateTime = as.POSIXct(Start.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific"))
+    mutate(EndDateTime = as.POSIXct(End.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific"))
+    separate(Start.Date, into = c("StartDate", "StartTime"), sep = " ") %>%
+    separate(End.Date, into = c("EndDate", "EndTime"), sep = " ") %>%
+    rename(c("Bike.." = "Bike_number"))
+
 ```
 
-You can also embed plots, for example:
 
-```{r, echo=FALSE}
-plot(cars)
+###Exploratory and Summary Plots
+```{r}
+hist(tripdata$Duration, breaks = 10000, xlim = c(0, 5000))
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+
+
+
+
+
+
+
