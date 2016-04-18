@@ -98,7 +98,7 @@ stationdata$ZIP = ex_zip(stationdata$address)
 
 #use station name to merge stationdata with tripdata, add only ZIPs to tripdata
 tripdata = merge(tripdata, stationdata[,c("name", "ZIP")], by.x = "Start.Station", by.y = "name")
-
+tripdata_final = merge(tripdata, weather_subset, by.x = c("StartDate", "ZIP"), by.y = c("PDT", "Zip"))
 ```
 
 
