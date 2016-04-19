@@ -65,6 +65,7 @@ Daily weather information per service area. Weather is listed from north to sout
 
 ```{r}
 library(plyr)
+library(dplyr)
 library(tidyr)
 library(ggmap)
 library(qdapRegex)
@@ -99,8 +100,11 @@ stationdata <- stationdata %>%
     mutate(ZIP = ex_zip(text.var = address))
 
 #use station name to merge stationdata with tripdata, add only ZIPs to tripdata
-
-#turn 'lat' and 'long' into start_lat and start_long; then create new end_lat and end_long f
+#use ZIP and date to merge with weather data for each trip
+#create variables for start_lat, start_long, end_lat, end_long using stationdata
+#remove 'T' for trace precipitation; replace w/ 0 so this variable is continuous and can be used in PCA
+#omit na
+#filter to remove 3 rides that were > 50000 seconds (multiple days long); skews plots and analysis
 
 tripdata_final <- tripdata %>%
     na.omit() %>%
@@ -111,10 +115,11 @@ tripdata_final <- tripdata %>%
     merge(stationdata[,c("name", "lat", "long")], by.x = "End.Station", by.y = "name") %>%
     transform(end_lat = lat, end_long = long) %>%
     subset(select = -c(lat, long)) %>%
-    mutate(PrecipitationIn = revalue(PrecipitationIn, c("T" = 0)) %>%
-    na.omit()
+    mutate(PrecipitationIn = revalue(PrecipitationIn, c("T" = 0))) %>%
+    na.omit() %>%
+    filter(Duration <= 50000)
     
-    
+#row-wise computation of Great Circle distance between start and end locations for each trip; use this as a proxy for trip distance    
 for (i in 1:nrow(tripdata_final)) {
     start_long = tripdata_final[i,c("start_long")]
     start_lat = tripdata_final[i,c("start_lat")]
@@ -122,21 +127,30 @@ for (i in 1:nrow(tripdata_final)) {
     end_lat = tripdata_final[i,c("end_lat")]
     tripdata_final$distGeo[i] = distGeo(c(start_long, start_lat), c(end_long, end_lat))
 }
+
+for (i in 1:nrow(tripdata_final)) {
+    start_hr = strsplit(tripdata_final[i,c("StartTime")], split = ":")[[1]][1]
+    start_min = strsplit(tripdata_final[i,c("StartTime")], split = ":")[[1]][2]
+    tripdata_final$StartTimeMin[i] = as.numeric(start_hr)*60+as.numeric(start_min)
+}
     
 rownames(tripdata_final) <- tripdata_final$Trip.ID    
 
 
 ```
 
-Notes:
-
-Remove massive outlier w/super long trip
-Trace precipitation -> 'T': set to 0.
-
 
 ###Exploratory and Summary Plots
 ```{r}
-hist(tripdata$Duration, breaks = 10000, xlim = c(0, 5000))
+library(ggplot2)
+
+#jitter plot or boxplot of trip durations
+
+#geo heatmap of starting locations and ending locations
+
+#faceted plot showing distribution of mean temperature, mean humidity, mean visibility, mean wind speed to show variability of weather data
+
+#histogram of trip start & end times
 
 ```
 
@@ -144,7 +158,23 @@ hist(tripdata$Duration, breaks = 10000, xlim = c(0, 5000))
 #Principal Components Analysis and Visualization
 
 ```{r}
-tripdata_pca = tripdata[,c("Duration", "")]
+#subset only continuous variables, convert columns to numeric as necessary
+
+tripdata_pca <- tripdata_final %>%
+    subset(select = c(Duration, distGeo, Max.TemperatureF, Mean.TemperatureF, Min.TemperatureF, Mean.Humidity, Mean.VisibilityMiles, Mean.Wind.SpeedMPH, Max.Gust.SpeedMPH, PrecipitationIn, CloudCover, StartTimeMin)) %>%
+    mutate(PrecipitationIn = as.numeric(as.character(PrecipitationIn))) 
+
+pr.out = prcomp(tripdata_pca, scale = TRUE)
+
+#compute variance explained by each principal component, and then share of variance explained by each
+pr.var=pr.out$sdev^2
+pve=pr.var/sum(pr.var)
+
+biplot(pr.out, scale = 0)
+plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained ", ylim=c(0,1),type='b')
+plot(cumsum(pve), xlab="Principal Component ", ylab=" Cumulative Proportion of Variance Explained ", ylim=c(0,1), type='b')
+
+
 ```
 
 #Clustering and Visualization
