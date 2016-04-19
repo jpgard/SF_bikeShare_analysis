@@ -71,9 +71,9 @@ library(qdapRegex)
 library(geosphere)
 
 
-stationdata = read.csv("201408_babs_open_data/201408_station_data.csv")
-tripdata = read.csv("201408_babs_open_data/201408_trip_data.csv")
-weatherdata = read.csv("201408_babs_open_data/201408_weather_data.csv")
+stationdata = read.csv("babs_open_data_year_2/201508_station_data.csv")
+tripdata = read.csv("babs_open_data_year_2/201508_trip_data.csv")
+weatherdata = read.csv("babs_open_data_year_2/201508_weather_data.csv")
 
 weather_subset = weatherdata[,c("PDT", "Max.TemperatureF", "Mean.TemperatureF", "Min.TemperatureF", "Mean.Humidity", "Mean.VisibilityMiles", "Mean.Wind.SpeedMPH", "Max.Gust.SpeedMPH", "PrecipitationIn", "CloudCover", "Events", "Zip")]
 
@@ -94,35 +94,34 @@ for (i in 1:nrow(stationdata)) {
 #write.csv(results, file = "station_addresses.csv")
 
 #add address to stationdata, extract ZIP codes to new variable
-stationdata = merge(results, stationdata)
-stationdata$ZIP = ex_zip(stationdata$address)
+stationdata <- stationdata %>%
+    merge(results) %>%
+    mutate(ZIP = ex_zip(text.var = address))
 
 #use station name to merge stationdata with tripdata, add only ZIPs to tripdata
-#tripdata = merge(tripdata, stationdata[,c("name", "ZIP", "lat", "long")], by.x = "Start.Station", by.y = "name")
-#tripdata_final = merge(tripdata, weather_subset, by.x = c("StartDate", "ZIP"), by.y = c("PDT", "Zip"))
-
 
 #turn 'lat' and 'long' into start_lat and start_long; then create new end_lat and end_long f
-#tripdata_final = transform(tripdata_final, start_lat = lat, start_long = long)
 
 tripdata_final <- tripdata %>%
+    na.omit() %>%
     merge(stationdata[,c("name", "ZIP", "lat", "long")], by.x = "Start.Station", by.y = "name") %>%
     merge(weather_subset, by.x = c("StartDate", "ZIP"), by.y = c("PDT", "Zip")) %>%
     transform(start_lat = lat, start_long = long) %>%
     subset(select = -c(lat, long)) %>%
     merge(stationdata[,c("name", "lat", "long")], by.x = "End.Station", by.y = "name") %>%
     transform(end_lat = lat, end_long = long) %>%
-    subset(select = -c(lat, long))
-
+    subset(select = -c(lat, long)) %>%
+    mutate(PrecipitationIn = revalue(PrecipitationIn, c("T" = 0)) %>%
+    na.omit()
+    
+    
 for (i in 1:nrow(tripdata_final)) {
     start_long = tripdata_final[i,c("start_long")]
     start_lat = tripdata_final[i,c("start_lat")]
     end_long = tripdata_final[i,c("end_long")]
     end_lat = tripdata_final[i,c("end_lat")]
-    tripdata_final$distGeo = distGeo(c(start_long, start_lat), c(end_long, end_lat))
+    tripdata_final$distGeo[i] = distGeo(c(start_long, start_lat), c(end_long, end_lat))
 }
-
-#NOTE: giving all same distances...this is a problem...lag/long issues appear to be the source.
     
 rownames(tripdata_final) <- tripdata_final$Trip.ID    
 
@@ -130,8 +129,7 @@ rownames(tripdata_final) <- tripdata_final$Trip.ID
 ```
 
 Notes:
-Create variable w/trip distance
-omit NAs
+
 Remove massive outlier w/super long trip
 Trace precipitation -> 'T': set to 0.
 
