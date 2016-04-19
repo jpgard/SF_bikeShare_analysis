@@ -82,17 +82,21 @@ tripdata <- tripdata %>%
     mutate(StartDateTime = as.POSIXct(Start.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific")) %>%
     mutate(EndDateTime = as.POSIXct(End.Date, format = "%m/%d/%Y %H:%M", tz = "Pacific")) %>%
     separate(Start.Date, into = c("StartDate", "StartTime"), sep = " ") %>%
-    separate(End.Date, into = c("EndDate", "EndTime"), sep = " ") %>%
-    rename(c("Bike.." = "Bike_number"))
+    separate(End.Date, into = c("EndDate", "EndTime"), sep = " ")
 
-results = data.frame()
-for (i in 1:nrow(stationdata)) {
-    address = revgeocode(c(stationdata[i,c("long")], stationdata[i,c("lat")]))
-    results = rbind(results, data.frame("name" = stationdata[i,c("name")], "address" = address))
-}
+#reverse geocode; commented out because data was saved to file
+
+#results = data.frame()
+#for (i in 1:nrow(stationdata)) {
+#    address = revgeocode(c(stationdata[i,c("long")], stationdata[i,c("lat")]))
+#    results = rbind(results, data.frame("name" = stationdata[i,c("name")], "address" = address))
+#}
 
 #saves results of station addresses to file
 #write.csv(results, file = "station_addresses.csv")
+
+#reads saved results data from file
+results = read.csv("station_addresses.csv")
 
 #add address to stationdata, extract ZIP codes to new variable
 stationdata <- stationdata %>%
@@ -157,6 +161,14 @@ library(ggplot2)
 
 #Principal Components Analysis and Visualization
 
+##Introduction
+
+Here, we apply Principal Component Analysis (PCA) to the data to explore the possibility of using dimension reduction to reduce the number of predictors used for the analysis and modeling tasks below, and as an unsupervised exploratory tool to measure the relationships between different variables in the dataset.
+
+##Implementation
+
+Principal Component Analysis was implemented using the subset of data produced by the preprocessing above, and included all of the continuous variables in this dataset (both variables that were originally provided, and those that were derived from the original data, such as distGeo). PCA was performed on the scaled data with mean zero and standard deviation one, because data were measured in several different units and displayed large differences in variances. The **prcomp()** function in R was used to generate these principal components, but any other PCA function would generate the same principal components, as each principal component loading vector is unique to the dataset (up to a sign flip, because flipping the sign of the vector has no effect on its position in p-dimentional space; each principal component vector extends in both directions).
+
 ```{r}
 #subset only continuous variables, convert columns to numeric as necessary
 
@@ -165,17 +177,37 @@ tripdata_pca <- tripdata_final %>%
     mutate(PrecipitationIn = as.numeric(as.character(PrecipitationIn))) 
 
 pr.out = prcomp(tripdata_pca, scale = TRUE)
+```
 
+##Data Analysis: PCA Results
+```{r}
+pr.out
+```
+
+```{r}
 #compute variance explained by each principal component, and then share of variance explained by each
 pr.var=pr.out$sdev^2
 pve=pr.var/sum(pr.var)
 
-biplot(pr.out, scale = 0)
-plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained ", ylim=c(0,1),type='b')
-plot(cumsum(pve), xlab="Principal Component ", ylab=" Cumulative Proportion of Variance Explained ", ylim=c(0,1), type='b')
-
-
+biplot(pr.out, scale = 0, xlabs=rep(".", nrow(tripdata_pca)))
+plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained ", ylim=c(0,1),type='b', main = "Fig. 1: Proportion of Variance Explained By Principal Components\nof BABS Trip and Weather Data")
+plot(cumsum(pve), xlab="Principal Component ", ylab=" Cumulative Proportion of Variance Explained ", ylim=c(0,1), type='b', main = "Fig. 2: Cumulative Proportion of Variance Explained By Principal Components\nof BABS Trip and Weather Data")
 ```
+
+The loading vector for each of the principal components are shown above. We see that there are 12 distinct principal components, which we would expect because there are in general min(n − 1, p) informative principal components in a data set with n observations and p variables. Principal components were calculated using scaled data, because several different units were used to measure the different predictors and the predictors had large differences in their variance, due in part to these differences in measurement units. We also calculated the variance explained by each principal component, obtained by squaring the standard deviation of each principal component, and computed the cumulative proportion of the variance explained by each principal component by dividing the variance explained by each individual principal component by the sum of the variance of all principal components. Then, we utilized the cumsum() function in R to compute the cumulative sums for the plot above.
+
+As Fig. 1, also known as a scree plot, shows, there is a relatively smooth decline in the proportion of the variance explained by each successive principal component. Ideally, we would hope for an "elbow" shape in the scree plot, where the proportion of variance explained decreases sharply and then begins to level off, but this isn't the case here. Principal Components Analysis is intended to be a dimensionality reduction technique--that is, to reduce the number of variables needed to describe the relationship between data points--but, for the data here with the inputs used, this isn't a particularly effective approach, or at least there isn't a clear cutoff as to which principal component vectors we should include.
+
+We can also examine the loading vectors individually, however, and examine which variables achieved high factor loadings. Variables that are loading on the same factor should usually "make sense" together, indicating that this factor is actually picking up and reducing a real multivariate relationship into a univariate one (in the case of a single factor). Indeed, we see that the loading vector for the first principal component, listed as PC1 above, has high loadings for *Max.TemperatureF*, *Mean.TemperatureF*, *Min.TemperatureF*, suggesting that it is a reduction of variables related to temperature. This seems certainly like a valuable principal component, as we can intuitively understand why whether would affect the use of bike-sharing programs: users who do not own bikes, but merely rent them from BABS on occasion, would be expected to take that day's weather, and especially its temperature, into account when deciding whether or not to rent a bike (which is inherently an outdoor activity) on a given day. 
+
+Additionally, in the second principal component loading vector, we can see high loadings for *Mean.Wind.SpeedMPH*, *Mean.Wind.SpeedMPH*, and *CloudCover*, suggesting that this second vector is picking up conditions related to wind and weather patterns--again, factors that seem to be closely connected to each other (and thus reasonable candidates for dimensionality reduction in a principal components vector).
+
+We also noted the high loadings in PC4, the loading vector for principal component four, for *Duration*, *distGeo* (geographic distance between the start and end stations), and *StartTimeMin* (the numeric minute of the day when the ride started), suggesting that this principal component is picking up on features of the ride itself (distance, duration, and time of day the ride began at)--again, elements that are clearly related to one another and would again be reasonable candidates for dimensionality reduction via principal component analysis.
+
+##Implications for Parameter Selection
+
+Principal components analysis conducted on the August 2015 Bay Area Bike Share data results in meaningful principal components, but these principal components do not explain a substantial enough share of the variance to suggest that these would be a useful solution to many prediction or modeling problems with this dataset. The relatively low effectiveness of the principal component analysis approach is likely due, at least in part, to the fact that many meaningful variables in the BABS dataset are factor variables, not continuous variables, and therefore not condidates for use in PCA. Using a dimension reduction approach that could handle these types of variables, such as multiple factor analysis (MFA) might be a reasonable next step, but is beyond the scope of this project.
+
 
 #Clustering and Visualization
 
