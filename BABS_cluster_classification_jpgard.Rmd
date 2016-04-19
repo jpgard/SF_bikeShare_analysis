@@ -68,6 +68,7 @@ library(plyr)
 library(tidyr)
 library(ggmap)
 library(qdapRegex)
+library(geosphere)
 
 
 stationdata = read.csv("201408_babs_open_data/201408_station_data.csv")
@@ -97,9 +98,35 @@ stationdata = merge(results, stationdata)
 stationdata$ZIP = ex_zip(stationdata$address)
 
 #use station name to merge stationdata with tripdata, add only ZIPs to tripdata
-tripdata = merge(tripdata, stationdata[,c("name", "ZIP")], by.x = "Start.Station", by.y = "name")
-tripdata_final = merge(tripdata, weather_subset, by.x = c("StartDate", "ZIP"), by.y = c("PDT", "Zip"))
+#tripdata = merge(tripdata, stationdata[,c("name", "ZIP", "lat", "long")], by.x = "Start.Station", by.y = "name")
+#tripdata_final = merge(tripdata, weather_subset, by.x = c("StartDate", "ZIP"), by.y = c("PDT", "Zip"))
+
+
+#turn 'lat' and 'long' into start_lat and start_long; then create new end_lat and end_long f
+#tripdata_final = transform(tripdata_final, start_lat = lat, start_long = long)
+
+tripdata_final <- tripdata %>%
+    merge(stationdata[,c("name", "ZIP", "lat", "long")], by.x = "Start.Station", by.y = "name") %>%
+    merge(weather_subset, by.x = c("StartDate", "ZIP"), by.y = c("PDT", "Zip")) %>%
+    transform(start_lat = lat, start_long = long) %>%
+    subset(select = -c(lat, long)) %>%
+    merge(stationdata[,c("name", "lat", "long")], by.x = "End.Station", by.y = "name") %>%
+    transform(end_lat = lat, end_long = long) %>%
+    subset(select = -c(lat, long)) %>%
+    mutate(trip_distGeo = distGeo(c(start_long, start_lat), c(end_long, end_lat)))
+    
+    
+    
+rownames(tripdata_final) <- tripdata_final$Trip.ID    
+
+
 ```
+
+Notes:
+Create variable w/trip distance
+omit NAs
+Remove massive outlier w/super long trip
+Trace precipitation -> 'T': set to 0.
 
 
 ###Exploratory and Summary Plots
@@ -109,8 +136,11 @@ hist(tripdata$Duration, breaks = 10000, xlim = c(0, 5000))
 ```
 
 
-
 #Principal Components Analysis and Visualization
+
+```{r}
+tripdata_pca = tripdata[,c("Duration", "")]
+```
 
 #Clustering and Visualization
 
