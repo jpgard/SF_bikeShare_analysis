@@ -112,10 +112,17 @@ tripdata_final <- tripdata %>%
     subset(select = -c(lat, long)) %>%
     merge(stationdata[,c("name", "lat", "long")], by.x = "End.Station", by.y = "name") %>%
     transform(end_lat = lat, end_long = long) %>%
-    subset(select = -c(lat, long)) %>%
-    mutate(trip_distGeo = distGeo(c(start_long, start_lat), c(end_long, end_lat)))
-    
-    
+    subset(select = -c(lat, long))
+
+for (i in 1:nrow(tripdata_final)) {
+    start_long = tripdata_final[i,c("start_long")]
+    start_lat = tripdata_final[i,c("start_lat")]
+    end_long = tripdata_final[i,c("end_long")]
+    end_lat = tripdata_final[i,c("end_lat")]
+    tripdata_final$distGeo = distGeo(c(start_long, start_lat), c(end_long, end_lat))
+}
+
+#NOTE: giving all same distances...this is a problem...lag/long issues appear to be the source.
     
 rownames(tripdata_final) <- tripdata_final$Trip.ID    
 
