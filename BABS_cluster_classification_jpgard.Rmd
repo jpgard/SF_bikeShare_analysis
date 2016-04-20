@@ -206,13 +206,32 @@ We also noted the high loadings in PC4, the loading vector for principal compone
 
 ##Implications for Parameter Selection
 
-Principal components analysis conducted on the August 2015 Bay Area Bike Share data results in meaningful principal components, but these principal components do not explain a substantial enough share of the variance to suggest that these would be a useful solution to many prediction or modeling problems with this dataset. As Hastie and Tibshirani write in Introduction to Statistical Learning, "In practice, we tend to look at the first few principal components in order to find interesting patterns in the data. If no interesting patterns are found in the first few principal components, then further principal components are unlikely to be of interest." Such is the case here--while this is a valuable exploratory data analysis exercise, the principal components are unlikely to be of any practical use in this analysis.
+Principal components analysis conducted on the August 2015 Bay Area Bike Share data results in meaningful principal components, but these principal components do not explain a substantial enough share of the variance to suggest that these would be a useful solution to many prediction or modeling problems with this dataset. As Hastie and Tibshirani write in Introduction to Statistical Learning, "In practice, we tend to look at the first few principal components in order to find interesting patterns in the data. If no interesting patterns are found in the first few principal components, then further principal components are unlikely to be of interest" (384). Such is the case here--while this is a valuable exploratory data analysis exercise, the principal components are unlikely to be of any practical use in this analysis because they do not explain enough of the variance to be practically useful.
 
 The relatively low effectiveness of the principal component analysis approach is likely due, at least in part, to the fact that many meaningful variables in the BABS dataset are factor variables, not continuous variables, and therefore not condidates for use in PCA. Using a dimension reduction approach that could handle these types of variables, such as multiple factor analysis (MFA) might be a reasonable next step, but is beyond the scope of this project.
 
 
 #Clustering and Visualization
 
+##Introduction
+
+Clustering, which is an unsupervised technique used to find similar groups in a dataset, is another useful exploratory technique that might be a better way to explore similarities between types of rides in our data. The general task for clustering is to partition the data into distinct groups so that the observations within each group are quite similar to each other, while observations in different groups are quite different from each other. Both clustering and PCA are ways of exploring trends and patterns in the data and finding a small number of summary statistics, but clustering specifically looks to create subgroups, while PCA simply looks to find smaller numbers of variables (individually and in combination) that explain a maximum amount of the variance in the data.
+
+Clustering, in particular, might be a real task the administrators of the Bay Area Bike Share would be interested: having a clear understanding of the different types of rides their customers are most likely to take would allow BABS to meet customer needs by allocating bikes correctly, and to market their service effectively by appealing to the types of riders most likely to use the service.
+
+##Implementation
+
+We elected to implement heirarchical clustering to explore our dataset instead of using an alternative clustering method like K-means clustering. While k-means clustering can be a useful method, it requires specifying the number of clusters (or experimenting with several values of k); we found heirarchical clustering to be a more useful way to explore the data with fewer assumptions and restrictions as to how it would be clustered. We used **average linkage** and **complete linkage** as the dissimilarity measures for our initial clustering, because these two methods are generally considered to yield more balanced clusters.
+
+We again elected to scale the data prior to clustering, due to the different units used to measure the variables being used for the clustering model (which included trip information--distance, duration, and start time--as well as several types of weather information).
+
+Cluster validation was performed primarily through visualization--however, if we intended to have any measure of our confidence in the clusters, their p-values, etc., a more rigorous statistical approach would need to be applied. Such a validation approach is beyond the scope of this project (and this course), and there appears to be little consensus on effective cluster validation among the statistical learning community at present.
+
+####Note: try both correlation-based and euclidean distance
+
+##Data Analysis: Clustering Results
+
+##Implications for Parameter Selection
 
 
 
