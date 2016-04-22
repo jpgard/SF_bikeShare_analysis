@@ -14,12 +14,9 @@ The questions of interest for this analysis are:
 
 #The Data
 
-This analysis uses three different datasets provided as part of the Bay Area Bike Share (BABS) open dataset. Files contain data from  3/1/14 to 8/31/14.
+This analysis uses three different datasets provided as part of the Bay Area Bike Share (BABS) open dataset. Files contain data from  3/1/14 to 8/31/14. The data are publicly available at http://www.bayareabikeshare.com/open-data and contain information about each station, each individual trip, daily weather information about each service area, and bike and dock availability per minute per station. The data fields in each file are described in detail below:
 
-####Station Information:
-
-FILE = "201408_station_data.csv"
-
+####Station Information (FILE = "201408_station_data.csv"):
 
 * station_id: station ID number (corresponds to "station_id" in "201408_status_data.csv")
 * name: name of station
@@ -29,41 +26,36 @@ FILE = "201408_station_data.csv"
 * landmark: city (San Francisco, Redwood City, Palo Alto, Mountain View, San Jose)
 * installation: date that station was installed 
 
-####Trip Data:
+####Trip Data (FILE = "201408_trip_data.csv"):
 
-FILE = "201408_trip_data.csv"
-
-
--Trip ID: numeric ID of bike trip
--Duration: time of trip in seconds
--Start Date: start date of trip with date and time, in PST
--Start Station: station name of start station
--Start Terminal: numeric reference for start station
--End Date: end date of trip with date and time, in PST
--End Station: station name for end station
--End Terminal: numeric reference for end station
--Bike #: ID of bike used
--Subscription Type: Subscriber = annual member; Customer = 24-hour or 3-day member
--Zip Code: Home zip code of user (only available for annual members)
-
+* Trip ID: numeric ID of bike trip
+* Duration: time of trip in seconds
+* Start Date: start date of trip with date and time, in PST
+* Start Station: station name of start station
+* Start Terminal: numeric reference for start station
+* End Date: end date of trip with date and time, in PST
+* End Station: station name for end station
+* End Terminal: numeric reference for end station
+* Bike #: ID of bike used
+* Subscription Type: Subscriber = annual member; Customer = 24-hour or 3-day member
+* Zip Code: Home zip code of user (only available for annual members)
 
 ####Weather Data:
 
 FILE = "201408_weather_data.csv"
 Daily weather information per service area. Weather is listed from north to south (San Francisco, Redwood City, Palo Alto, Mountain View, San Jose).
     
--Max_Visibility_Miles 	
--Mean_Visibility_Miles 	
--Min_Visibility_Miles 	 		
--Precipitation_In 	"numeric, in form x.xx but alpha ""T""= trace when amount less than .01 inch"	
--Cloud_Cover 	"scale of 0-8, 0=clear"	
--Events	"text field - entries: rain, fog, thunderstorm"	
--zip code: 94107=San Francisco, 94063=Redwood City, 94301=Palo Alto, 94041=Mountain View, 95113= San Jose"
+* Max_Visibility_Miles 	
+* Mean_Visibility_Miles 	
+* Min_Visibility_Miles 	 		
+* Precipitation_In: numeric, in form x.xx but alpha ""T""= trace when amount less than .01 inch
+* Cloud_Cover: scale of 0-8, 0=clear	
+* Events: text field - entries: rain, fog, thunderstorm	
+* ZIP code: 94107=San Francisco, 94063=Redwood City, 94301=Palo Alto, 94041=Mountain View, 95113= San Jose
 
 #Analysis and Methods
 
-
-```{r, cache=TRUE, echo=FALSE}
+```{r, cache=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 library(plyr)
 library(dplyr)
 library(tidyr)
@@ -150,15 +142,34 @@ rownames(tripdata_final) <- tripdata_final$Trip.ID
 ###Exploratory and Summary Plots
 ```{r, cache=TRUE, echo=FALSE}
 library(ggplot2)
+library(ggmap)
 
 #jitter plot or boxplot of trip durations
 
-#geo heatmap of starting locations and ending locations
+boxplot(tripdata_final$Duration, main = "BABS Trip Duration")
+hist(filter(tripdata_final, Duration <= 3600)$Duration, main = "Histogram of Duration for Rides < 1 Hour", xlab = "Duration")
 
-#faceted plot showing distribution of mean temperature, mean humidity, mean visibility, mean wind speed to show variability of weather data
+par(mfrow=c(2,2), cex.main = 1)
+hist(tripdata_final$Mean.TemperatureF, main = "Distribution of Daily Mean Temperatures", xlab = "Temperature in ºF")
+hist(tripdata_final$Mean.Humidity, main = "Distribution of Daily Mean Humidity", xlab = "Percent Humidity")
+hist(tripdata_final$Mean.VisibilityMiles, main = "Distribution of Daily Visibility", xlab = "Visibility in Miles")
+hist(tripdata_final$Mean.Wind.SpeedMPH, main = "Distribution of Daily Mean Wind Speed", xlab = "Mean Wind Speed in MPH")
+
+#geo heatmap of starting locations and ending locations
+sf = get_map(location = c(-122.35, 37.73), zoom = 10)
+sfMap <- ggmap(sf, extent = "device", legend = "topright")
+sfMap + stat_density2d(aes(x = start_long, y = start_lat, fill = ..level.., alpha = ..level..), bins = 10, geom = "polygon", data = tripdata_final) + scale_fill_gradient(low = "black", high = "red")
+
+#heatmap of starting and ending stations
+tt = data.frame(table(tripdata_final$Start.Station, tripdata_final$End.Station))
+names(tt) <- c("Start.Station", "End.Station", "Count")
+ggplot(tt, aes(x = Start.Station, y = End.Station, fill = Count)) + geom_tile() + scale_fill_gradient(low = "white", high = "steelblue") + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1, colour="black"), axis.text.y = element_text(colour = "black")) + ggtitle("Traffic Between Stations\nBay Area Bike Share, August 2015")
+
 
 #histogram of trip start & end times
-
+par(mfrow=c(1,1), cex.main = 1)
+hist(tripdata_final$StartTimeMin, main = "Rides By Daily Start Time",xaxt='n')
+axis(1, xaxp=c(0, 1440, 6), las=2, labels = c("12 am", "4 am", "8 am", "12 pm", "4 pm", "8 pm", "12am"), at = c(0, 240, 480, 720, 960, 1200, 1440))
 ```
 
 
@@ -255,8 +266,8 @@ plot(hc.sing, main="Single Linkage With Scaled Features", xlab="", sub="", label
 #note that 'scale' parameter here only applies to color; 
 #it does not actually scale the values for clustering 
 #(they have already been scaled above!)
-par(mfrow=c(1,1))
-heatmap.2(tripdata_knn, hclustfun = function(x) hclust(x, method = "complete"), col=redblue(256), scale='row', trace = "none", density.info="density", cexCol = 0.5, labRow = "", main = "Cluster Heatmap With Complete Linkage and Euclidean Distance")
+par(mfrow=c(1,1), cex.main=0.7)
+heatmap.2(tripdata_knn, hclustfun = function(x) hclust(x, method = "complete"), col=redblue(256), scale='row', trace = "none", density.info="density", cexCol = 0.5, srtCol= 45, labRow = "", main = "Bay Area Bike Share:\nHeirarchical Clusters With Complete Linkage\nand Euclidean Distance")
 ```
 
 One import result that is readily visible from the dendograms above is the relatively balanced size of the clusters yielded by both the complete and the average linkage--in particular, complete linkage yields much more evenly-balanced clusters than either of the other two methods. We see lower-level clusters of approximately the same size  being progressively linked with similar-sized trips throughout the dendogram (besides the trips at the extreme right and left). In contrast, the single linkage in particular displays much more unbalanced clusters, with much larger and smaller clusters scattered throughout the dendogram. While the actual best clustering method would depend substantially on the underlying structure of the data, here, where we are interested primarily in exploratory analysis, more balanced clusters might be useful.
@@ -265,9 +276,9 @@ One import result that is readily visible from the dendograms above is the relat
 
 The heatmap, in particular, does a good job of providing different suggestions for possible clusters, or combinations of variables that may be important (which is encoded in the color of the plot, as well as the dendogram on the left), and it also reveals connections between the variables (the dendogram on top). In particular we can see the following clusters based on "chunks" of color that align in different columns:
 
-. Long early-morning rides: These are indicated by deep red bands in the **StartTimeMin** variable (an indicator for the minute of the day that rides begin at), and deep blue bands in the **distGeo** variable (which represents Great Circle distance between the start and end station--a proxy for the trpi distance). These may indicate riders traveling to work in the morning.
-. Short evening rides: These are indicated by deep blue bands in the **StartTimeMin** variable and red bands in the **distGeo** variable. These may be riders who take short rides in the afternoon or nighttime, often returning to the station they started at (or one nearby).
-. Cold, clear daytime rides: These rides are represented by deep blue bands in the **Mean.Temperature.F** and **Max.Temperature.F** columns, and red bands in the **Mean.Humidity** and **CloudCover** columns. This cluster of riders, almost at the top of the heatmap, represents rides that took place on cold, but clear, low-humidity days--great cycling weather if you have something warm to wear (they also have nearly-whic **Duration** values, indicating very short rides!). 
+* Long early-morning rides: These are indicated by deep red bands in the **StartTimeMin** variable (an indicator for the minute of the day that rides begin at), and deep blue bands in the **distGeo** variable (which represents Great Circle distance between the start and end station--a proxy for the trpi distance). These may indicate riders traveling to work in the morning.
+* Short evening rides: These are indicated by deep blue bands in the **StartTimeMin** variable and red bands in the **distGeo** variable. These may be riders who take short rides in the afternoon or nighttime, often returning to the station they started at (or one nearby).
+* Cold, clear daytime rides: These rides are represented by deep blue bands in the **Mean.Temperature.F** and **Max.Temperature.F** columns, and red bands in the **Mean.Humidity** and **CloudCover** columns. This cluster of riders, almost at the top of the heatmap, represents rides that took place on cold, but clear, low-humidity days--great cycling weather if you have something warm to wear (they also have nearly-whic **Duration** values, indicating very short rides!). 
 
 There are some other very interesting clusters here as well. In general, the heatmap shows that there are indeed interesting relationships between variables, and that many of these are similar to the relationships we identified in the exploratory PCA plot.
 

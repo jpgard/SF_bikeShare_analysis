@@ -1,0 +1,10 @@
+base
+plyr
+dplyr
+tidyr
+ggplot2
+ggmap
+qdapRegex
+sp
+geosphere
+gplots
