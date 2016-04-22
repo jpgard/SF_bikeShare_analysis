@@ -237,6 +237,7 @@ Note: Clustering was only implemented on a random subset of the data (10%). Beca
 ##Data Analysis: Clustering Results
 
 ```{r}
+library(gplots)
 set.seed(2016)
 tripdata_knn = scale(sample_n(tripdata_pca, 8622))
 hc.complete = hclust(dist(tripdata_knn), method="complete")
@@ -248,12 +249,30 @@ plot(hc.complete,main="Complete Linkage With Scaled Features", xlab="", sub="", 
 plot(hc.avg, main="Average Linkage With Scaled Features", xlab="", sub="", labels = FALSE)
 plot(hc.sing, main="Single Linkage With Scaled Features", xlab="", sub="", labels = FALSE)
 
-heatmap.2(tripdata_knn, hclustfun = function(x) hclust(x, method = "average"), col=redblue(256), scale='none', cexCol = 0.7)
+#dendogram without trace
+#note that 'scale' parameter here only applies to color; 
+#it does not actually scale the values for clustering 
+#(they have already been scaled above!)
+par(mfrow=c(1,1))
+heatmap.2(tripdata_knn, hclustfun = function(x) hclust(x, method = "complete"), col=redblue(256), scale='row', trace = "none", density.info="density", cexCol = 0.5, labRow = "", main = "Cluster Heatmap With Complete Linkage and Euclidean Distance")
 ```
 
-One import result that is readily visible from the dendograms above is the relatively balanced size of the clusters yielded by boyh the complete and the average linkage. We see lower-level clusters of approximately the same size  being progressively linked with similar-sized trips throughout the dendogram (besides the trips at the extreme right and left). In contrast, the single linkage displays much more unbalanced clusters, with mich larger and smaller clusters scattered throughout the dendogram. While the actual best clustering method would depend substantially on the underlying structure of the data, here, where we are interested primarily in exploratory analysis, more balanced clusters might be useful.
+One import result that is readily visible from the dendograms above is the relatively balanced size of the clusters yielded by both the complete and the average linkage--in particular, complete linkage yields much more evenly-balanced clusters than either of the other two methods. We see lower-level clusters of approximately the same size  being progressively linked with similar-sized trips throughout the dendogram (besides the trips at the extreme right and left). In contrast, the single linkage in particular displays much more unbalanced clusters, with much larger and smaller clusters scattered throughout the dendogram. While the actual best clustering method would depend substantially on the underlying structure of the data, here, where we are interested primarily in exploratory analysis, more balanced clusters might be useful.
 
 ##Implications for Parameter Selection
+
+The heatmap, in particular, does a good job of providing different suggestions for possible clusters, or combinations of variables that may be important (which is encoded in the color of the plot, as well as the dendogram on the left), and it also reveals connections between the variables (the dendogram on top). In particular we can see the following clusters based on "chunks" of color that align in different columns:
+
+.Long early-morning rides: These are indicated by deep red bands in the **StartTimeMin** variable (an indicator for the minute of the day that rides begin at), and deep blue bands in the **distGeo** variable (which represents Great Circle distance between the start and end station--a proxy for the trpi distance). These may indicate riders traveling to work in the morning.
+.Short evening rides: These are indicated by deep blue bands in the **StartTimeMin** variable and red bands in the **distGeo** variable. These may be riders who take short rides in the afternoon or nighttime, often returning to the station they started at (or one nearby).
+.Cold, clear daytime rides: These rides are represented by deep blue bands in the **Mean.Temperature.F** and **Max.Temperature.F** columns, and red bands in the **Mean.Humidity** and **CloudCover** columns. This cluster of riders, almost at the top of the heatmap, represents rides that took place on cold, but clear, low-humidity days--great cycling weather if you have something warm to wear (they also have nearly-whic **Duration** values, indicating very short rides!). 
+
+There are some other very interesting clusters here as well. In general, the heatmap shows that there are indeed interesting relationships between variables, and that many of these are similar to the relationships we identified in the exploratory PCA plot.
+
+In particular, the variable dendogram reveals that **Mean.TemperatureF** and **Max.TemperatureF** are closely related (and these are both also connected to **Min.TemperatureF**), that **Mean.Humidity** and **CloudCover** are related, and **Mean.Wind.SpeedMPH** and **Max.Gust.Speed** as well. All of these connections mirror our findings from examining the principal component analysis loading vectors, which revealed close relationships between "weather" variables generally, and between specific related weather metrics (such as min, mean, and max temperature) in particular.
+
+Taken together, these findings demonstrate how important weather variables are for understanding the Bay Area Bike Share data, a finding echoed above: it is clear that the Bay Area Bike Share riders are the very definition of "fair weather" riders, which again makes sense based on the nature of the program. Additionally, it is clear that some of the non-weather variables in the dataset--particularly ride duration--are skewed in a way that makes them less useful here. Eliminating some of the outliers in that variable might yield more interesting findings. Additionally, these findings suggest that the "instrumental" variable calculated here, distGeo (which represents the Great Circle distance between the ride's start and end station), might indeed be useful for future predictions, even though we don't have data about the actual distance of the ride itself (which almost certainly isn't "as the crow flies", which is how Great Circle distance is calculated). 
+
 
 
 
