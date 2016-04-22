@@ -2,7 +2,7 @@
 title: "STATS 415 Final Project"
 author: "Joshua Gardner"
 date: "April 15, 2016"
-output: html_document
+output: word_document
 ---
 
 #Introduction
@@ -140,37 +140,52 @@ rownames(tripdata_final) <- tripdata_final$Trip.ID
 
 
 ###Exploratory and Summary Plots
-```{r, cache=TRUE, echo=FALSE}
+```{r, cache=TRUE, echo=FALSE, fig.width=6, fig.height=3}
 library(ggplot2)
 library(ggmap)
 
-#jitter plot or boxplot of trip durations
+#trip durations
 
-boxplot(tripdata_final$Duration, main = "BABS Trip Duration")
+par(mfrow=c(1,2), cex.main = 0.8)
+boxplot(tripdata_final$Duration, main = "Boxplot of Trip Duration")
 hist(filter(tripdata_final, Duration <= 3600)$Duration, main = "Histogram of Duration for Rides < 1 Hour", xlab = "Duration")
+```
 
+```{r, cache=TRUE, echo=FALSE}
 par(mfrow=c(2,2), cex.main = 1)
-hist(tripdata_final$Mean.TemperatureF, main = "Distribution of Daily Mean Temperatures", xlab = "Temperature in ºF")
-hist(tripdata_final$Mean.Humidity, main = "Distribution of Daily Mean Humidity", xlab = "Percent Humidity")
-hist(tripdata_final$Mean.VisibilityMiles, main = "Distribution of Daily Visibility", xlab = "Visibility in Miles")
-hist(tripdata_final$Mean.Wind.SpeedMPH, main = "Distribution of Daily Mean Wind Speed", xlab = "Mean Wind Speed in MPH")
+hist(tripdata_final$Mean.TemperatureF, main = "Distribution of Mean Temperatures", xlab = "Temperature in ºF")
+hist(tripdata_final$Mean.Humidity, main = "Distribution of Mean Humidity", xlab = "Percent Humidity")
+hist(tripdata_final$Mean.VisibilityMiles, main = "Distribution of Visibility", xlab = "Visibility in Miles")
+hist(tripdata_final$Mean.Wind.SpeedMPH, main = "Distribution ofMean Wind Speed", xlab = "Mean Wind Speed in MPH")
 
-#geo heatmap of starting locations and ending locations
-sf = get_map(location = c(-122.35, 37.73), zoom = 10)
-sfMap <- ggmap(sf, extent = "device", legend = "topright")
-sfMap + stat_density2d(aes(x = start_long, y = start_lat, fill = ..level.., alpha = ..level..), bins = 10, geom = "polygon", data = tripdata_final) + scale_fill_gradient(low = "black", high = "red")
-
-#heatmap of starting and ending stations
-tt = data.frame(table(tripdata_final$Start.Station, tripdata_final$End.Station))
-names(tt) <- c("Start.Station", "End.Station", "Count")
-ggplot(tt, aes(x = Start.Station, y = End.Station, fill = Count)) + geom_tile() + scale_fill_gradient(low = "white", high = "steelblue") + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1, colour="black"), axis.text.y = element_text(colour = "black")) + ggtitle("Traffic Between Stations\nBay Area Bike Share, August 2015")
+#geographic heatmap of starting locations and ending locations - commented out bc it didn't add much information and the heatmap below is much better
+#sf = get_map(location = c(-122.35, 37.73), zoom = 10)
+#sfMap <- ggmap(sf, extent = "device", legend = "topright")
+#sfMap + stat_density2d(aes(x = start_long, y = start_lat, fill = ..level.., alpha = ..level..), bins = 10, geom = "polygon", data = tripdata_final) + scale_fill_gradient(low = "black", high = "red")
 
 
 #histogram of trip start & end times
 par(mfrow=c(1,1), cex.main = 1)
-hist(tripdata_final$StartTimeMin, main = "Rides By Daily Start Time",xaxt='n')
+hist(tripdata_final$StartTimeMin, main = "Rides By Daily Start Time",xaxt='n', ylab = "Trip Duration (min)")
 axis(1, xaxp=c(0, 1440, 6), las=2, labels = c("12 am", "4 am", "8 am", "12 pm", "4 pm", "8 pm", "12am"), at = c(0, 240, 480, 720, 960, 1200, 1440))
 ```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.height=9, fig.width=9, cache=TRUE}
+#heatmap of starting and ending stations
+tt = data.frame(table(tripdata_final$Start.Station, tripdata_final$End.Station))
+names(tt) <- c("Start.Station", "End.Station", "Count")
+ggplot(tt, aes(x = Start.Station, y = End.Station, fill = Count)) + geom_tile() + scale_fill_gradient(low = "white", high = "steelblue") + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1, colour="black", size=rel(0.6)), axis.text.y = element_text(colour = "black", size=rel(0.6))) + ggtitle("Traffic Between Stations\nBay Area Bike Share, August 2015")
+
+
+```
+
+The exploratory plots above reveal several trends. A few of the insights they reveal:
+
+* The distribution of **duration** is highly skewed--most trips are roughly 15 minutes in length, and the overwhelming majority of trips are far less than 1 hour in length. However, as the boxplot shows, this distribution is highly skewed, and there are several outliers that represent trips that are multiple hours (or days) long.
+* The **weather** variables shown above (mean temperature, mean humidity, mean visibility, and mean wind speed) all have slightly different distributions, but all except visibility are at least approximately normal (temperature appears to follow a bimodal distribution). Visibility seems to have an upper limit of 10 miles.
+* The distribution of **ride start time** is approximately bimodal, with large groups of riders beginning their rides around 8am and around 5pm. These may represent riders traveling to an from work.
+* A small subset of stations account for the majority of rider activity. Specifically, the two San Francisco Caltrain stops (literally San Francisco Caltrain, and San Francosco Caltrain 2) account for a large majority of the station starts, but those riders end in many different locations.
+
 
 
 #Principal Components Analysis and Visualization
@@ -194,22 +209,24 @@ pr.out = prcomp(tripdata_pca, scale = TRUE)
 ```
 
 ##Data Analysis: PCA Results
-```{r, cache=TRUE, echo=FALSE}
+```{r, cache=TRUE, echo=FALSE, results='hide'}
 pr.out
 ```
 
-```{r, cache=TRUE, echo=FALSE, fig.width=15}
+```{r, cache=TRUE, echo=FALSE, fig.width=7, fig.height=3}
 #compute variance explained by each principal component, and then share of variance explained by each
 pr.var=pr.out$sdev^2
 pve=pr.var/sum(pr.var)
 
-par(mfrow=c(1,3))
+par(mfrow=c(1,3), mar=c(4,4,4,4), cex.main=0.8)
 biplot(pr.out, scale = 0, xlabs=rep(".", nrow(tripdata_pca)), main = "PCA Biplot")
-plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained ", ylim=c(0,1),type='b', main = "Fig. 1: Proportion of Variance Explained By Principal Components\nof BABS Trip and Weather Data")
-plot(cumsum(pve), xlab="Principal Component ", ylab=" Cumulative Proportion of Variance Explained ", ylim=c(0,1), type='b', main = "Fig. 2: Cumulative Proportion of Variance Explained By Principal Components\nof BABS Trip and Weather Data")
+plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained ", ylim=c(0,1),type='b', main = "Fig. 1: Proportion of Variance\nExplained By Principal Components\nof BABS Trip and Weather Data")
+plot(cumsum(pve), xlab="Principal Component ", ylab=" Cumulative Proportion of Variance Explained ", ylim=c(0,1), type='b', main = "Fig. 2: Cumulative Proportion of Variance\nExplained By Principal Components\nof BABS Trip and Weather Data")
 ```
 
 The loading vector for each of the principal components are shown above. We see that there are 12 distinct principal components, which we would expect because there are in general min(n − 1, p) informative principal components in a data set with n observations and p variables. Principal components were calculated using scaled data, because several different units were used to measure the different predictors and the predictors had large differences in their variance, due in part to these differences in measurement units. We also calculated the variance explained by each principal component, obtained by squaring the standard deviation of each principal component, and computed the cumulative proportion of the variance explained by each principal component by dividing the variance explained by each individual principal component by the sum of the variance of all principal components. Then, we utilized the cumsum() function in R to compute the cumulative sums for the plot above.
+
+It is difficult to see much separation between points in the PCA biplot, which is likely due to the low amount of variance explained by the first two components (which are the only two components included in the biplot).
 
 As Fig. 1, also known as a scree plot, shows, there is a relatively smooth decline in the proportion of the variance explained by each successive principal component. Ideally, we would hope for an "elbow" shape in the scree plot, where the proportion of variance explained decreases sharply and then begins to level off, but this isn't the case here. Principal Components Analysis is intended to be a dimensionality reduction technique--that is, to reduce the number of variables needed to describe the relationship between data points--but, for the data here with the inputs used, this isn't a particularly effective approach, or at least there isn't a clear cutoff as to which principal component vectors we should include.
 
@@ -236,15 +253,13 @@ Clustering, in particular, might be a real task the administrators of the Bay Ar
 
 ##Implementation
 
-We elected to implement heirarchical clustering to explore our dataset instead of using an alternative clustering method like K-means clustering. While k-means clustering can be a useful method, it requires specifying the number of clusters (or experimenting with several values of k); we found heirarchical clustering to be a more useful way to explore the data with fewer assumptions and restrictions as to how it would be clustered. We used **average linkage** and **complete linkage** as the dissimilarity measures for our initial clustering, because these two methods are generally considered to yield more balanced clusters.
+We elected to implement heirarchical clustering to explore our dataset instead of using an alternative clustering method like K-means clustering. While k-means clustering can be a useful method, it requires specifying the number of clusters (or experimenting with several values of k); we found heirarchical clustering to be a more useful way to explore the data with fewer assumptions and restrictions as to how it would be clustered. We used **average linkage** and **complete linkage** as the dissimilarity measures for our initial clustering, because these two methods are generally considered to yield more balanced clusters. Euclidean distance was used for all clustering, but correlation-based clustering could also be a promising approach for this dataset, as it would model the similarity between bike rides differently.
 
 We again elected to scale the data prior to clustering, due to the different units used to measure the variables being used for the clustering model (which included trip information--distance, duration, and start time--as well as several types of weather information).
 
 Cluster validation was performed primarily through visualization--however, if we intended to have any measure of our confidence in the clusters, their p-values, etc., a more rigorous statistical approach would need to be applied. Such a validation approach is beyond the scope of this project (and this course), and there appears to be little consensus on effective cluster validation among the statistical learning community at present.
 
 Note: Clustering was only implemented on a random subset of the data (10%). Because naive heirarchical clustering is O(n^3) and the original dataset contained over 86,000 observations, we eleected to randomly sample the data and explore clustering on this sample instead. Particularly because clustering is being used as an exploratory method here, not a predictive method, we believed that this sample size represented a reasonable compromise between computational complexity and dataset size.
-
-####Note: try both correlation-based and euclidean distance
 
 ##Data Analysis: Clustering Results
 
@@ -261,7 +276,7 @@ plot(hc.complete,main="Complete Linkage With Scaled Features", xlab="", sub="", 
 plot(hc.avg, main="Average Linkage With Scaled Features", xlab="", sub="", labels = FALSE)
 plot(hc.sing, main="Single Linkage With Scaled Features", xlab="", sub="", labels = FALSE)
 ```
-```{r, echo=FALSE, cache=TRUE, fig.width=9, fig.height=5.5}
+```{r, echo=FALSE, cache=TRUE, fig.width=6, fig.height=4.5}
 #dendogram without trace
 #note that 'scale' parameter here only applies to color; 
 #it does not actually scale the values for clustering 
@@ -270,7 +285,7 @@ par(mfrow=c(1,1), cex.main=0.7)
 heatmap.2(tripdata_knn, hclustfun = function(x) hclust(x, method = "complete"), col=redblue(256), scale='row', trace = "none", density.info="density", cexCol = 0.5, srtCol= 45, labRow = "", main = "Bay Area Bike Share:\nHeirarchical Clusters With Complete Linkage\nand Euclidean Distance")
 ```
 
-One import result that is readily visible from the dendograms above is the relatively balanced size of the clusters yielded by both the complete and the average linkage--in particular, complete linkage yields much more evenly-balanced clusters than either of the other two methods. We see lower-level clusters of approximately the same size  being progressively linked with similar-sized trips throughout the dendogram (besides the trips at the extreme right and left). In contrast, the single linkage in particular displays much more unbalanced clusters, with much larger and smaller clusters scattered throughout the dendogram. While the actual best clustering method would depend substantially on the underlying structure of the data, here, where we are interested primarily in exploratory analysis, more balanced clusters might be useful.
+One important result that is readily visible from the dendograms above is the relatively balanced size of the clusters yielded by both the complete and the average linkage--in particular, complete linkage yields much more evenly-balanced clusters than either of the other two methods. We see lower-level clusters of approximately the same size  being progressively linked with similar-sized trips throughout the dendogram (besides the trips at the extreme right and left). In contrast, the single linkage in particular displays much more unbalanced clusters, with much larger and smaller clusters scattered throughout the dendogram. While the actual best clustering method would depend substantially on the underlying structure of the data, here, where we are interested primarily in exploratory analysis, more balanced clusters might be useful.
 
 ##Implications for Parameter Selection
 
